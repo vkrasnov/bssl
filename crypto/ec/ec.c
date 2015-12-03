@@ -621,6 +621,52 @@ int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx) {
   return !BN_is_zero(order);
 }
 
+int EC_GROUP_do_inverse_ord(const EC_GROUP *group, BIGNUM *res,
+                            const BIGNUM *x, BN_CTX *ctx, int constantTime) {
+  int ret = 0;
+  BIGNUM *order = NULL, *tmp = NULL;
+  BN_CTX_start(ctx);
+  if (group->meth->field_inverse_mod_ord != NULL) {
+    ret = group->meth->field_inverse_mod_ord(group, res, x, ctx);
+  } else {
+    if ((order = BN_CTX_get(ctx)) == NULL) {
+      goto err;
+    }
+    if (!EC_GROUP_get_order(group, order, ctx)) {
+      OPENSSL_PUT_ERROR(ECDSA, ERR_R_EC_LIB);
+      goto err;
+    }
+    if (constantTime) {
+      if (ec_group_get_mont_data(group) != NULL) {
+        if ((tmp = BN_CTX_get(ctx)) == NULL) {
+          OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
+          goto err;
+        }
+        /* We want inverse in constant time, therefore we use that the order must
+         * be prime and thus we can use Fermat's Little Theorem. */
+        if (!BN_set_word(tmp, 2) || !BN_sub(tmp, order, tmp)) {
+          OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
+          goto err;
+        }
+
+        BN_set_flags(tmp, BN_FLG_CONSTTIME);
+        if (!BN_mod_exp_mont_consttime(res, x, tmp, order, ctx,
+                                       ec_group_get_mont_data(group))) {
+          OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
+          goto err;
+        }
+      }
+    } else if (!BN_mod_inverse(res, x, order, ctx)) {
+      OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
+      goto err;
+    }
+  }
+  ret = 1;
+err:
+  BN_CTX_end(ctx);
+  return ret;
+}
+
 int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor,
                           BN_CTX *ctx) {
   if (!BN_copy(cofactor, &group->cofactor)) {

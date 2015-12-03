@@ -190,8 +190,8 @@ int ECDSA_do_verify(const uint8_t *digest, size_t digest_len,
     goto err;
   }
   /* calculate tmp1 = inv(S) mod order */
-  if (!BN_mod_inverse(u2, sig->s, order, ctx)) {
-    OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
+  if (!EC_GROUP_do_inverse_ord(group, u2, sig->s, ctx, 0)) {
+    OPENSSL_PUT_ERROR(ECDSA, ERR_R_EC_LIB);
     goto err;
   }
   if (!digest_to_bn(m, digest, digest_len, order)) {
@@ -325,22 +325,8 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
   } while (BN_is_zero(r));
 
   /* compute the inverse of k */
-  if (ec_group_get_mont_data(group) != NULL) {
-    /* We want inverse in constant time, therefore we use that the order must
-     * be prime and thus we can use Fermat's Little Theorem. */
-    if (!BN_set_word(X, 2) ||
-        !BN_sub(X, order, X)) {
-      OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
-      goto err;
-    }
-    BN_set_flags(X, BN_FLG_CONSTTIME);
-    if (!BN_mod_exp_mont_consttime(k, k, X, order, ctx,
-                                   ec_group_get_mont_data(group))) {
-      OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
-      goto err;
-    }
-  } else if (!BN_mod_inverse(k, k, order, ctx)) {
-    OPENSSL_PUT_ERROR(ECDSA, ERR_R_BN_LIB);
+  if (!EC_GROUP_do_inverse_ord(group, k, k, ctx, 1)) {
+    OPENSSL_PUT_ERROR(ECDSA, ERR_R_EC_LIB);
     goto err;
   }
   /* clear old values if necessary */

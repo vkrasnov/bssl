@@ -125,6 +125,10 @@ OPENSSL_EXPORT const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group);
 OPENSSL_EXPORT int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order,
                                       BN_CTX *ctx);
 
+/* EC_GROUP_do_inverse_ord performs inversion modulo order of |group| */
+OPENSSL_EXPORT int EC_GROUP_do_inverse_ord(const EC_GROUP *group, BIGNUM *res,
+                            const BIGNUM *x, BN_CTX *ctx, int constantTime);
+
 /* EC_GROUP_get_cofactor sets |*cofactor| to the cofactor of |group| using
  * |ctx|, if it's not NULL. It returns one on success and zero otherwise. */
 OPENSSL_EXPORT int EC_GROUP_get_cofactor(const EC_GROUP *group,

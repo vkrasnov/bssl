@@ -86,7 +86,8 @@ const EC_METHOD *EC_GFp_mont_method(void) {
                                 ec_GFp_mont_field_sqr,
                                 ec_GFp_mont_field_encode,
                                 ec_GFp_mont_field_decode,
-                                ec_GFp_mont_field_set_to_one};
+                                ec_GFp_mont_field_set_to_one,
+                                0};
 
   return &ret;
 }
